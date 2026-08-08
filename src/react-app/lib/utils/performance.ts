@@ -360,7 +360,7 @@ export function createSelector<TState, TResult>(
   let lastState: TState | undefined;
   
   return (state: TState): TResult => {
-    if (lastState !== undefined && equalityFn(lastState, state)) {
+    if (lastState !== undefined && equalityFn(lastResult!, selector(state))) {
       return lastResult!;
     }
     

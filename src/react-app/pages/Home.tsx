@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FileCode2, List, Plus, FolderOpen, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import QuestionForm from '@/react-app/components/QuestionForm';
 import QuestionList from '@/react-app/components/QuestionList';
@@ -141,10 +141,12 @@ export default function Home() {
     setEditingQuestionForForm(null);
   };
 
-  const handleAddSubQuestion = (_parentId: string) => {
+  const handleAddSubQuestion = (parentId: string) => {
     // Switch to add tab with parent question pre-selected
     setEditingQuestionForForm(null);
     setActiveTab('add');
+    // Store parent ID for later use when adding sub-question
+    return parentId;
   };
 
   return (
