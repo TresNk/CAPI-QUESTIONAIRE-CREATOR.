@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { FileCode2, List, Plus, FolderOpen, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import QuestionForm from '@/react-app/components/QuestionForm';
 import QuestionList from '@/react-app/components/QuestionList';
@@ -15,7 +15,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('add');
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
   const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
-  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [editingQuestionForForm, setEditingQuestionForForm] = useState<SurveyQuestion | null>(null);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
@@ -109,7 +108,6 @@ export default function Home() {
     };
     setSections([...sections, newSection]);
     setNewSectionName('');
-    setSectionDialogOpen(false);
   };
 
   const removeSection = (id: string) => {
@@ -143,7 +141,7 @@ export default function Home() {
     setEditingQuestionForForm(null);
   };
 
-  const handleAddSubQuestion = (parentId: string) => {
+  const handleAddSubQuestion = (_parentId: string) => {
     // Switch to add tab with parent question pre-selected
     setEditingQuestionForForm(null);
     setActiveTab('add');

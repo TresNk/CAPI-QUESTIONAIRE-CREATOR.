@@ -103,17 +103,17 @@ export function useShallowCompareProps<T extends object>(props: T): T {
  * Useful for search inputs, resize handlers, etc.
  */
 export function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useStateOrRef(value);
+  const debouncedValueRef = useRef(value);
   
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedValue(value);
+      debouncedValueRef.current = value;
     }, delay);
     
     return () => clearTimeout(timer);
   }, [value, delay]);
   
-  return debouncedValue.current;
+  return debouncedValueRef.current;
 }
 
 /**
@@ -121,18 +121,18 @@ export function useDebounce<T>(value: T, delay: number): T {
  * Useful for scroll handlers, window resize, etc.
  */
 export function useThrottle<T>(value: T, interval: number): T {
-  const [throttledValue, setThrottledValue] = useStateOrRef(value);
+  const throttledValueRef = useRef(value);
   const lastUpdateRef = useRef<number>(0);
   
   useEffect(() => {
     const now = Date.now();
     
     if (now - lastUpdateRef.current >= interval) {
-      setThrottledValue(value);
+      throttledValueRef.current = value;
       lastUpdateRef.current = now;
     } else {
       const timer = setTimeout(() => {
-        setThrottledValue(value);
+        throttledValueRef.current = value;
         lastUpdateRef.current = Date.now();
       }, interval - (now - lastUpdateRef.current));
       
@@ -140,7 +140,7 @@ export function useThrottle<T>(value: T, interval: number): T {
     }
   }, [value, interval]);
   
-  return throttledValue.current;
+  return throttledValueRef.current;
 }
 
 /**
@@ -261,7 +261,7 @@ export function useBatchUpdates() {
     isBatchingRef.current = false;
   }, []);
   
-  return { scheduleUpdate, flushUpdates, isBatching: isBatchingRef.current };
+  return { scheduleUpdate, flushUpdates, isBatching: () => isBatchingRef.current };
 }
 
 /**
@@ -271,38 +271,38 @@ export function useBatchUpdates() {
 export function useLazyLoad<T>(
   loadData: () => Promise<T>,
   options?: { threshold?: number; rootMargin?: string }
-): { data: T | null; isLoading: boolean; error: Error | null; hasLoaded: boolean } {
-  const [data, setData] = useStateOrRef<T | null>(null);
-  const [isLoading, setIsLoading] = useStateOrRef(false);
-  const [error, setError] = useStateOrRef<Error | null>(null);
-  const [hasLoaded, setHasLoaded] = useStateOrRef(false);
+): { data: T | null; isLoading: boolean; error: Error | null; hasLoaded: boolean; load: () => Promise<void> } {
+  const dataRef = useRef<T | null>(null);
+  const isLoadingRef = useRef(false);
+  const errorRef = useRef<Error | null>(null);
+  const hasLoadedRef = useRef(false);
   
   const loadRef = useRef<(() => Promise<void>) | null>(null);
   
   if (!loadRef.current) {
     loadRef.current = async () => {
-      if (hasLoaded.current || isLoading.current) return;
+      if (hasLoadedRef.current || isLoadingRef.current) return;
       
-      setIsLoading(true);
-      setError(null);
+      isLoadingRef.current = true;
+      errorRef.current = null;
       
       try {
         const result = await loadData();
-        setData(result);
-        setHasLoaded(true);
+        dataRef.current = result;
+        hasLoadedRef.current = true;
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load'));
+        errorRef.current = err instanceof Error ? err : new Error('Failed to load');
       } finally {
-        setIsLoading(false);
+        isLoadingRef.current = false;
       }
     };
   }
   
   return {
-    data: data.current,
-    isLoading: isLoading.current,
-    error: error.current,
-    hasLoaded: hasLoaded.current,
+    data: dataRef.current,
+    isLoading: isLoadingRef.current,
+    error: errorRef.current,
+    hasLoaded: hasLoadedRef.current,
     load: loadRef.current,
   };
 }

@@ -77,14 +77,14 @@ export function validateCrossFieldDependencies(
 
       // Validate validation rules
       if (question.validation) {
-        const { min, max, minLength, maxLength, requiredIf } = question.validation;
+        const { minValue, maxValue, minLength, maxLength, requiredIf } = question.validation;
 
         // Numeric range validation
-        if (min !== undefined && max !== undefined && min > max) {
+        if (minValue !== undefined && maxValue !== undefined && minValue > maxValue) {
           errors.push({
             questionId: question.id,
             field: 'validation',
-            message: `Minimum value (${min}) cannot be greater than maximum value (${max})`,
+            message: `Minimum value (${minValue}) cannot be greater than maximum value (${maxValue})`,
             severity: 'error'
           });
         }

@@ -258,7 +258,7 @@ export function useKeyboardNavigation<T extends HTMLElement>(options?: {
   } = options || {};
   
   const containerRef = useRef<T>(null);
-  const [focusedIndex, setFocusedIndex] = useStateOrRef<number>(-1);
+  const focusedIndexRef = useRef<number>(-1);
   
   const handleKeyDown = useCallback((e: React.KeyboardEvent, itemCount: number) => {
     if (itemCount === 0) return;
@@ -267,7 +267,7 @@ export function useKeyboardNavigation<T extends HTMLElement>(options?: {
     const moveForward = isVertical ? e.key === 'ArrowDown' : e.key === 'ArrowRight';
     const moveBackward = isVertical ? e.key === 'ArrowUp' : e.key === 'ArrowLeft';
     
-    let newIndex = focusedIndex.current;
+    let newIndex = focusedIndexRef.current;
     
     if (moveForward) {
       e.preventDefault();
@@ -283,8 +283,8 @@ export function useKeyboardNavigation<T extends HTMLElement>(options?: {
       newIndex = itemCount - 1;
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (onActivate && focusedIndex.current >= 0) {
-        onActivate(focusedIndex.current);
+      if (onActivate && focusedIndexRef.current >= 0) {
+        onActivate(focusedIndexRef.current);
       }
       return;
     } else {
@@ -297,7 +297,7 @@ export function useKeyboardNavigation<T extends HTMLElement>(options?: {
       if (newIndex >= itemCount) newIndex = 0;
     }
     
-    setFocusedIndex(newIndex);
+    focusedIndexRef.current = newIndex;
     
     // Move actual focus
     if (containerRef.current) {
@@ -307,12 +307,12 @@ export function useKeyboardNavigation<T extends HTMLElement>(options?: {
         targetItem.focus();
       }
     }
-  }, [orientation, cycle, onActivate, focusedIndex]);
+  }, [orientation, cycle, onActivate]);
   
   return {
     containerRef,
-    focusedIndex: focusedIndex.current,
-    setFocusedIndex,
+    focusedIndex: focusedIndexRef.current,
+    setFocusedIndex: (index: number) => { focusedIndexRef.current = index; },
     handleKeyDown,
   };
 }
@@ -323,7 +323,7 @@ export function useKeyboardNavigation<T extends HTMLElement>(options?: {
 function useStateOrRef<T>(initialValue: T) {
   const ref = useRef<T>(initialValue);
   
-  const setValue = (value: T | ((prev: T) => T)) => {
+  const setState = (value: T | ((prev: T) => T)) => {
     if (typeof value === 'function') {
       ref.current = (value as (prev: T) => T)(ref.current);
     } else {
@@ -331,7 +331,7 @@ function useStateOrRef<T>(initialValue: T) {
     }
   };
   
-  return ref;
+  return { current: ref.current, setState };
 }
 
 /**

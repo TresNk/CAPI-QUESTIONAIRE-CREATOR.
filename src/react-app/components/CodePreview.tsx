@@ -1,9 +1,9 @@
 import { Copy, Download, Check } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Button } from '@/react-app/components/ui/button';
 import JSZip from 'jszip';
 import type { SurveyQuestion, SurveySection } from '@/react-app/types/survey';
-import { CONSTANTS, getTypeInfo, getInvertedOperator, getDirectOperator, truncateText, toCRLF } from '@/react-app/lib/utils';
+import { CONSTANTS, getTypeInfo, getInvertedOperator, truncateText, toCRLF } from '@/react-app/lib/utils';
 
 interface CodePreviewProps {
   questions: SurveyQuestion[];
@@ -37,8 +37,8 @@ function generateCSProCode(questions: SurveyQuestion[]): string {
   questions.forEach((q) => {
     const typeInfo = getTypeInfo(q);
     lines.push(`  // ${q.questionText}`);
-    const decPart = typeInfo.decimals ? ` DEC(${typeInfo.decimals})` : '';
-    lines.push(`  ${typeInfo.dataType} ${q.variableName}(${typeInfo.length})${decPart};`);
+    const decimalsPart = typeInfo.decimals ? ` DEC(${typeInfo.decimals})` : '';
+    lines.push(`  ${typeInfo.dataType} ${q.variableName}(${typeInfo.length})${decimalsPart};`);
     lines.push('');
   });
 
@@ -210,8 +210,8 @@ function generateDictionaryDDF(questions: SurveyQuestion[]): string {
   const topLevelQuestions = questions.filter(q => !q.parentQuestionId);
   topLevelQuestions.forEach(q => {
     const typeInfo = getTypeInfo(q);
-    const decPart = typeInfo.decimals ? `,${typeInfo.decimals}` : '';
-    lines.push(`    ITEM=${q.variableName}, 1, ${typeInfo.dataType}, ${typeInfo.length}, ${typeInfo.length}, "${truncateText(q.questionText, 25)}"`);
+    const decimalsPart = typeInfo.decimals ? `,${typeInfo.decimals}` : '';
+    lines.push(`    ITEM=${q.variableName}, 1, ${typeInfo.dataType}, ${typeInfo.length}, ${typeInfo.length}${decimalsPart}, "${truncateText(q.questionText, 25)}"`);
     
     // Add sub-questions if it's a grid
     if (q.subQuestions && q.subQuestions.length > 0) {
