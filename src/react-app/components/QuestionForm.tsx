@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/react-app/components/ui/button';
 import { Input } from '@/react-app/components/ui/input';
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/react-app/components/ui/select';
 import type { QuestionType, QuestionOption, SurveyQuestion, SurveySection, ValidationRules } from '@/react-app/types/survey';
+import { validateQuestion, formatVariableName, CONSTANTS } from '@/react-app/lib/utils';
 
 interface QuestionFormProps {
   onAddQuestion: (question: SurveyQuestion) => void;
