@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import { FileCode2, List, Plus, FolderOpen } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { FileCode2, List, Plus, FolderOpen, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import QuestionForm from '@/react-app/components/QuestionForm';
 import QuestionList from '@/react-app/components/QuestionList';
 import CodePreview from '@/react-app/components/CodePreview';
 import ConditionDialog from '@/react-app/components/ConditionDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/react-app/components/ui/tabs';
 import type { SurveyQuestion, SurveySection, Condition } from '@/react-app/types/survey';
+import { useAutoSave, useQuestionnaireLoader } from '@/react-app/lib/hooks/useAutoSave';
+import { validateCrossFieldDependencies } from '@/react-app/lib/utils/crossFieldValidation';
 
 export default function Home() {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
@@ -16,6 +18,45 @@ export default function Home() {
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [editingQuestionForForm, setEditingQuestionForForm] = useState<SurveyQuestion | null>(null);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
+
+  // Load saved questionnaire on mount
+  const { loadedData, hasDraft, clearDraft } = useQuestionnaireLoader();
+  
+  // Initialize from saved draft if available
+  useEffect(() => {
+    if (loadedData) {
+      setQuestions(loadedData.questions || []);
+      setSections(loadedData.sections || []);
+    }
+  }, [loadedData]);
+
+  // Create questionnaire object for auto-save
+  const questionnaire = useMemo(() => ({
+    id: 'capi-questionnaire',
+    name: 'CAPI Survey',
+    description: 'Survey created with CAPI Builder',
+    version: '1.0',
+    sections,
+    questions,
+    codeLists: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }), [sections, questions]);
+
+  // Auto-save hook
+  const { status: saveStatus, lastSaved } = useAutoSave(questionnaire);
+
+  // Cross-field validation
+  const validationErrors = useMemo(() => {
+    return validateCrossFieldDependencies({
+      ...questionnaire,
+      codeLists: []
+    });
+  }, [questionnaire]);
+
+  const hasErrors = validationErrors.some(e => e.severity === 'error');
+  const hasWarnings = validationErrors.some(e => e.severity === 'warning');
 
   // Load IBM Plex Mono for code display
   useEffect(() => {
@@ -122,7 +163,54 @@ export default function Home() {
               <p className="text-xs text-slate-400">CSPro Code Generator</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="flex items-center gap-3 text-sm">
+            {/* Auto-save status */}
+            {saveStatus === 'saving' && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-blue-400 font-mono text-xs">
+                <Save className="w-3 h-3 animate-pulse" /> Saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && lastSaved && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-green-400 font-mono text-xs">
+                <CheckCircle className="w-3 h-3" /> Saved {lastSaved.toLocaleTimeString()}
+              </span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-red-400 font-mono text-xs">
+                <AlertCircle className="w-3 h-3" /> Save failed
+              </span>
+            )}
+            {/* Draft indicator */}
+            {hasDraft && (
+              <button
+                onClick={() => {
+                  if (confirm('Clear saved draft and start fresh?')) {
+                    clearDraft();
+                    setQuestions([]);
+                    setSections([]);
+                  }
+                }}
+                className="px-2 py-1 rounded bg-slate-800 text-slate-400 hover:text-white font-mono text-xs transition-colors"
+                title="Clear saved draft"
+              >
+                Clear Draft
+              </button>
+            )}
+            {/* Validation status */}
+            {(hasErrors || hasWarnings) && (
+              <button
+                onClick={() => setShowValidationErrors(!showValidationErrors)}
+                className={`flex items-center gap-1 px-2 py-1 rounded font-mono text-xs transition-colors ${
+                  hasErrors 
+                    ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' 
+                    : 'bg-amber-900/30 text-amber-400 hover:bg-amber-900/50'
+                }`}
+              >
+                <AlertCircle className="w-3 h-3" />
+                {validationErrors.filter(e => e.severity === 'error').length} errors,{' '}
+                {validationErrors.filter(e => e.severity === 'warning').length} warnings
+              </button>
+            )}
             {sections.length > 0 && (
               <span className="px-2 py-1 rounded bg-slate-800 text-amber-400 font-mono text-xs">
                 {sections.length} section{sections.length !== 1 ? 's' : ''}
@@ -230,6 +318,93 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* Validation Errors Dialog */}
+      {showValidationErrors && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <AlertCircle className={`w-5 h-5 ${hasErrors ? 'text-red-400' : 'text-amber-400'}`} />
+                Validation Issues
+              </h3>
+              <button
+                onClick={() => setShowValidationErrors(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {validationErrors.length === 0 ? (
+                <p className="text-green-400 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" /> No validation issues found!
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {validationErrors.map((error, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-lg border ${
+                        error.severity === 'error'
+                          ? 'bg-red-900/20 border-red-800/50'
+                          : 'bg-amber-900/20 border-amber-800/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <AlertCircle
+                          className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                            error.severity === 'error' ? 'text-red-400' : 'text-amber-400'
+                          }`}
+                        />
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${
+                            error.severity === 'error' ? 'text-red-300' : 'text-amber-300'
+                          }`}>
+                            {error.message}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Question: {error.questionId} • Field: {error.field}
+                          </p>
+                          <button
+                            onClick={() => {
+                              setShowValidationErrors(false);
+                              setActiveTab('list');
+                              // Scroll to the question in the list
+                              setTimeout(() => {
+                                const element = document.getElementById(`question-${error.questionId}`);
+                                element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 100);
+                            }}
+                            className="text-xs text-teal-400 hover:text-teal-300 mt-2 underline"
+                          >
+                            Go to question
+                          </button>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          error.severity === 'error'
+                            ? 'bg-red-800/50 text-red-300'
+                            : 'bg-amber-800/50 text-amber-300'
+                        }`}>
+                          {error.severity.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-700 bg-slate-800/50">
+              <button
+                onClick={() => setShowValidationErrors(false)}
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Decorative grid background */}
       <div 

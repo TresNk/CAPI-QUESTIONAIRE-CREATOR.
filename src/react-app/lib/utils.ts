@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { SurveyQuestion, ValidationRules, QuestionType } from '@/react-app/types/survey';
+import type { QuestionType } from '@/react-app/types/survey';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

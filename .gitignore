@@ -2,7 +2,7 @@
 # Dependencies
 node_modules/
 
-# Build outputs
+# Build artifacts
 dist/
 build/
 target/
@@ -12,27 +12,33 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.py.class
 .Python
 env/
 venv/
 .venv/
-.ENV
-.python-version
-
-# Logs
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS generated files
+*.tmp
+*.swp
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
+
+# React/Svelte specific
+.next/
+nuxt/dist
+.nuxt
+output
+.svelte-kit
+.craftos
 
 # Environment variables
 .env
@@ -45,21 +51,14 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
-# Testing
-coverage/
-htmlcov/
-.coverage
-.pytest_cache/
-.mypy_cache/
-
-# Distribution / packaging
-*.tar.gz
-*.whl
-*.egg-info/
-
-# Temporary files
 *.tmp
-*.temp
-*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 ```
