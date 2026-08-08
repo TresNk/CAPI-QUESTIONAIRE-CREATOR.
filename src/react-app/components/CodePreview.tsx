@@ -3,12 +3,16 @@ import { useState } from 'react';
 import { Button } from '@/react-app/components/ui/button';
 import JSZip from 'jszip';
 import type { SurveyQuestion, SurveySection } from '@/react-app/types/survey';
+import { CONSTANTS, getTypeInfo, getInvertedOperator, truncateText, toCRLF } from '@/react-app/lib/utils';
 
 interface CodePreviewProps {
   questions: SurveyQuestion[];
   sections?: SurveySection[];
 }
 
+/**
+ * Generate CSPro code from survey questions
+ */
 function generateCSProCode(questions: SurveyQuestion[]): string {
   if (questions.length === 0) {
     return '// Add questions to generate CSPro code\n// Your questionnaire code will appear here';
@@ -31,23 +35,10 @@ function generateCSProCode(questions: SurveyQuestion[]): string {
   
   // Variable declarations with type-specific handling
   questions.forEach((q) => {
-    const getTypeInfo = () => {
-      switch (q.type) {
-        case 'text': return { dataType: 'alpha', length: q.length || 50 };
-        case 'numeric': return { dataType: 'numeric', length: q.length || 2 };
-        case 'decimal': return { dataType: 'numeric', length: q.length || 8, decimals: q.decimalPlaces || 2 };
-        case 'date': return { dataType: 'numeric', length: 8 }; // YYYYMMDD format
-        case 'time': return { dataType: 'numeric', length: 4 }; // HHMM format
-        case 'multiple_choice':
-        case 'multi_select':
-        case 'yes_no': return { dataType: 'numeric', length: q.length || 2 };
-        default: return { dataType: 'alpha', length: q.length || 2 };
-      }
-    };
-    const typeInfo = getTypeInfo();
+    const typeInfo = getTypeInfo(q);
     lines.push(`  // ${q.questionText}`);
-    const decPart = typeInfo.decimals ? ` DEC(${typeInfo.decimals})` : '';
-    lines.push(`  ${typeInfo.dataType} ${q.variableName}(${typeInfo.length})${decPart};`);
+    const decimalsPart = typeInfo.decimals ? ` DEC(${typeInfo.decimals})` : '';
+    lines.push(`  ${typeInfo.dataType} ${q.variableName}(${typeInfo.length})${decimalsPart};`);
     lines.push('');
   });
 
@@ -87,13 +78,7 @@ function generateCSProCode(questions: SurveyQuestion[]): string {
       const condQ = questions.find(cq => cq.id === q.condition!.questionId);
       if (condQ) {
         lines.push('preproc');
-        const invertedOpMap: Record<string, string> = {
-          equals: '<>',
-          not_equals: '=',
-          greater_than: '<=',
-          less_than: '>=',
-        };
-        const op = invertedOpMap[q.condition.operator] || '<>';
+        const op = getInvertedOperator(q.condition.operator);
         const nextTarget = questions[idx + 1]?.variableName || 'NEXT_SECTION';
         lines.push(`  // Show only when ${condQ.variableName} meets condition`);
         lines.push(`  if ${condQ.variableName} ${op} ${q.condition.value} then`);
@@ -110,13 +95,13 @@ function generateCSProCode(questions: SurveyQuestion[]): string {
     // Type-specific comments
     switch (q.type) {
       case 'numeric':
-        lines.push(`  // Accepts integer input (length: ${q.length || 2})`);
+        lines.push(`  // Accepts integer input (length: ${q.length || CONSTANTS.DEFAULT_FIELD_LENGTH})`);
         break;
       case 'decimal':
-        lines.push(`  // Accepts decimal input (${q.decimalPlaces || 2} decimal places)`);
+        lines.push(`  // Accepts decimal input (${q.decimalPlaces || CONSTANTS.DEFAULT_DECIMAL_PLACES} decimal places)`);
         break;
       case 'text':
-        lines.push(`  // Accepts text input (length: ${q.length || 50})`);
+        lines.push(`  // Accepts text input (length: ${q.length || CONSTANTS.DEFAULT_TEXT_LENGTH})`);
         break;
       case 'date':
         lines.push(`  // Date input (YYYYMMDD format)`);
@@ -195,11 +180,11 @@ function generateCSProCode(questions: SurveyQuestion[]): string {
   return lines.join('\n');
 }
 
-// Helper to ensure Windows line endings (CRLF)
-function toCRLF(text: string): string {
-  return text.replace(/\r?\n/g, '\r\n');
-}
+// Duplicate toCRLF removed - using imported version from utils
 
+/**
+ * Generate manifest XML file
+ */
 function generateManifestXML(): string {
   return toCRLF(`<?xml version="1.0" encoding="UTF-8"?>
 <CSProApplication>
@@ -210,6 +195,9 @@ function generateManifestXML(): string {
 </CSProApplication>`);
 }
 
+/**
+ * Generate dictionary DDF file
+ */
 function generateDictionaryDDF(questions: SurveyQuestion[]): string {
   const lines: string[] = [];
   lines.push('VERSION=80');
@@ -222,15 +210,14 @@ function generateDictionaryDDF(questions: SurveyQuestion[]): string {
   const topLevelQuestions = questions.filter(q => !q.parentQuestionId);
   topLevelQuestions.forEach(q => {
     const typeInfo = getTypeInfo(q);
-    const decPart = typeInfo.decimals ? `,${typeInfo.decimals}` : '';
-    lines.push(`    ITEM=${q.variableName}, 1, ${typeInfo.dataType}, ${typeInfo.length}, ${typeInfo.length}, "${q.questionText.substring(0, 25)}"`);
+    const decimalsPart = typeInfo.decimals ? `,${typeInfo.decimals}` : '';
+    lines.push(`    ITEM=${q.variableName}, 1, ${typeInfo.dataType}, ${typeInfo.length}, ${typeInfo.length}${decimalsPart}, "${truncateText(q.questionText, 25)}"`);
     
     // Add sub-questions if it's a grid
     if (q.subQuestions && q.subQuestions.length > 0) {
       q.subQuestions.forEach(sq => {
         const subTypeInfo = getTypeInfo(sq);
-        const subDecPart = subTypeInfo.decimals ? `,${subTypeInfo.decimals}` : '';
-        lines.push(`    ITEM=${sq.variableName}, 1, ${subTypeInfo.dataType}, ${subTypeInfo.length}, ${subTypeInfo.length}, "${sq.questionText.substring(0, 20)}"`);
+        lines.push(`    ITEM=${sq.variableName}, 1, ${subTypeInfo.dataType}, ${subTypeInfo.length}, ${subTypeInfo.length}, "${truncateText(sq.questionText, 20)}"`);
       });
     }
   });
@@ -240,19 +227,7 @@ function generateDictionaryDDF(questions: SurveyQuestion[]): string {
   return toCRLF(lines.join('\r\n'));
 }
 
-function getTypeInfo(q: SurveyQuestion): { dataType: string; length: number; decimals?: number } {
-  switch (q.type) {
-    case 'text': return { dataType: 'A', length: q.length || 50 };
-    case 'numeric': return { dataType: 'N', length: q.length || 2 };
-    case 'decimal': return { dataType: 'N', length: q.length || 8, decimals: q.decimalPlaces || 2 };
-    case 'date': return { dataType: 'N', length: 8 };
-    case 'time': return { dataType: 'N', length: 4 };
-    case 'multiple_choice':
-    case 'multi_select':
-    case 'yes_no': return { dataType: 'N', length: q.length || 2 };
-    default: return { dataType: 'A', length: q.length || 2 };
-  }
-}
+// Duplicate getTypeInfo removed - using imported version from utils
 
 function generateFormsFDF(questions: SurveyQuestion[], sections: SurveySection[] = []): string {
   const lines: string[] = [];

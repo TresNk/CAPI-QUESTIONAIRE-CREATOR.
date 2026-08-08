@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/react-app/components/ui/select';
 import type { QuestionType, QuestionOption, SurveyQuestion, SurveySection, ValidationRules } from '@/react-app/types/survey';
+import { validateQuestion, formatVariableName, CONSTANTS } from '@/react-app/lib/utils';
 
 interface QuestionFormProps {
   onAddQuestion: (question: SurveyQuestion) => void;
